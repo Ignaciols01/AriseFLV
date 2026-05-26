@@ -32,7 +32,11 @@ export default function Login() {
     if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setAuthError(error.message);
+        if (error.message.includes('Invalid login credentials')) {
+          setAuthError('Correo o contraseña incorrectos.');
+        } else {
+          setAuthError('Error al iniciar sesión. Inténtalo de nuevo.');
+        }
         setIsLoading(false);
       } else {
         navigate('/dashboard');

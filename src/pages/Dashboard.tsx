@@ -10,8 +10,10 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('Todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [animeToEdit, setAnimeToEdit] = useState<any>(null); // Estado para editar
+  const [animeToEdit, setAnimeToEdit] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const genres = ['Todos', 'Shonen', 'Seinen', 'Shojo', 'Isekai', 'Slice of Life'];
 
   useEffect(() => {
     fetchAnimes();
@@ -34,18 +36,23 @@ export default function Dashboard() {
   const handleSaveAnime = async (formData: any) => {
     let publicUrl = formData.cover_url;
 
-    // Subir imagen si es nueva
     if (formData.coverFile) {
       const fileExt = formData.coverFile.name.split('.').pop();
       const filePath = `covers/${Math.random()}.${fileExt}`;
-      await supabase.storage.from('ariseflv_bucket').upload(filePath, formData.coverFile);
-      const { data } = supabase.storage.from('ariseflv_bucket').getPublicUrl(filePath);
-      publicUrl = data.publicUrl;
+      
+      const { error: uploadError } = await supabase.storage.from('ariseflv_bucket').upload(filePath, formData.coverFile);
+      
+      if (uploadError) {
+        alert("Atención: No se pudo subir la imagen. Comprueba que el 'ariseflv_bucket' sea público en Supabase. Error: " + uploadError.message);
+        return; 
+      } else {
+        const { data } = supabase.storage.from('ariseflv_bucket').getPublicUrl(filePath);
+        publicUrl = data.publicUrl;
+      }
     }
 
     const { data: userData } = await supabase.auth.getUser();
 
-    // Si tiene ID, actualizamos (EDITAR). Si no, insertamos (CREAR).
     if (formData.id) {
       const { data } = await supabase.from('animes').update({
         title: formData.title, genre: formData.genre, status: formData.status, rating: formData.rating, cover_url: publicUrl
@@ -59,6 +66,7 @@ export default function Dashboard() {
       
       if (data) setAnimes([data[0], ...animes]);
     }
+    setIsModalOpen(false); 
   };
 
   const openEditModal = (anime: any) => {
@@ -91,14 +99,36 @@ export default function Dashboard() {
           </button>
         </div>
 
-        <div className="flex gap-4 mb-10 bg-red-50 p-4 rounded-xl shadow-xl">
-          <div className="relative flex-1">
+        {/* NUEVO SISTEMA DE FILTROS */}
+        <div className="mb-10 bg-red-50 p-6 rounded-xl shadow-xl flex flex-col gap-6">
+          
+          <div className="relative w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-red-400" />
-            <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-12 rounded-lg border-2 border-red-200 bg-white px-12 text-sm text-red-950 font-medium focus:outline-none focus:border-red-500" />
+            <input 
+              type="text" 
+              placeholder="Buscar en tu bóveda..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="w-full h-12 rounded-lg border-2 border-red-200 bg-white px-12 text-sm text-red-950 font-bold focus:outline-none focus:border-red-500 shadow-sm transition-colors" 
+            />
           </div>
-          <select value={filterGenre} onChange={(e) => setFilterGenre(e.target.value)} className="h-12 w-[220px] rounded-lg border-2 border-red-200 bg-white px-4 text-sm text-red-950 font-black uppercase tracking-wider focus:outline-none focus:border-red-500">
-            <option value="Todos">Todos los géneros</option><option value="Shonen">Shonen</option><option value="Seinen">Seinen</option><option value="Shojo">Shojo</option><option value="Isekai">Isekai</option><option value="Slice of Life">Slice of Life</option>
-          </select>
+
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            {genres.map(genre => (
+              <button
+                key={genre}
+                onClick={() => setFilterGenre(genre)}
+                className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
+                  filterGenre === genre
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/40 transform scale-105'
+                    : 'bg-white border-2 border-red-100 text-red-800 hover:border-red-300 hover:bg-red-50'
+                }`}
+              >
+                {genre}
+              </button>
+            ))}
+          </div>
+
         </div>
 
         {isLoading ? (
@@ -107,12 +137,20 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {filteredAnimes.map((anime) => (
               <div key={anime.id} className="group rounded-xl bg-white shadow-xl hover:-translate-y-1 transition-all overflow-hidden relative flex flex-col border border-red-100">
-                <div className="aspect-[3/4] bg-red-100 flex items-center justify-center border-b border-red-100 relative">
-                  {anime.cover_url ? <img src={anime.cover_url} className="w-full h-full object-cover" /> : <ImageIcon className="w-12 h-12 text-red-300" />}
+                <div className="aspect-[3/4] bg-zinc-900 flex items-center justify-center border-b border-red-100 relative">
+                  {anime.cover_url ? (
+                    <img src={anime.cover_url} className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-12 h-12 text-red-300" />
+                  )}
                 </div>
                 <div className="p-5 flex flex-col flex-1 bg-white">
                   <div className="flex justify-between mb-3">
-                    <span className="text-xs font-bold text-blue-800 bg-blue-100 px-2 py-1 rounded-md">{anime.status}</span>
+                    <span className="text-xs font-bold text-blue-800 bg-blue-100 px-2 py-1 rounded-md">
+                      {anime.status === 'Viendo' && <><PlayCircle className="w-3 h-3 inline mr-1"/> Viendo</>}
+                      {anime.status === 'Completado' && <><CheckCircle2 className="w-3 h-3 inline mr-1"/> Completado</>}
+                      {anime.status === 'Pendiente' && <><Clock className="w-3 h-3 inline mr-1"/> Pendiente</>}
+                    </span>
                     <span className="flex items-center text-red-600 text-xs font-black bg-red-50 px-2 py-1 rounded-md border border-red-100"><Star className="w-3 h-3 mr-1 fill-current" />{anime.rating}</span>
                   </div>
                   <h3 className="font-black text-red-950 text-lg leading-tight line-clamp-2">{anime.title}</h3>

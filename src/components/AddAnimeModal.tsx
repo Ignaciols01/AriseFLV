@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 type AnimeFormData = {
   id?: string;
@@ -22,10 +23,19 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
   const [formData, setFormData] = useState<AnimeFormData>({
     title: '', genre: 'Shonen', status: 'Pendiente', rating: 5, coverFile: null, cover_url: ''
   });
-
+  
+  const [catalog, setCatalog] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Efecto para rellenar el formulario si le damos a "Editar"
+  // Cargamos el catálogo global para el autocompletado
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      const { data } = await supabase.from('catalog').select('*');
+      if (data) setCatalog(data);
+    };
+    fetchCatalog();
+  }, []);
+
   useEffect(() => {
     if (animeToEdit) {
       setFormData(animeToEdit);
@@ -35,6 +45,18 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
   }, [animeToEdit, isOpen]);
 
   if (!isOpen) return null;
+
+  // MAGIA: Si el título coincide con uno del catálogo, autorellenar
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const matched = catalog.find(c => c.title.toLowerCase() === val.toLowerCase());
+    
+    if (matched) {
+      setFormData({ ...formData, title: matched.title, genre: matched.genre, cover_url: matched.cover_url });
+    } else {
+      setFormData({ ...formData, title: val });
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,7 +93,7 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
               {formData.cover_url ? (
                 <img src={formData.cover_url} alt="Preview" className="w-full h-full object-cover" />
               ) : (
-                <><Upload className="w-6 h-6 text-red-400 mb-2" /><span className="text-xs font-bold text-red-500 uppercase">Subir</span></>
+                <><Upload className="w-6 h-6 text-red-400 mb-2" /><span className="text-xs font-bold text-red-500 uppercase">Subir Imagen</span></>
               )}
               <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageChange} />
             </div>
@@ -79,7 +101,19 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
 
           <div>
             <label className="block text-xs font-black text-red-800 uppercase tracking-widest mb-2">Título</label>
-            <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-white border-2 border-red-200 text-red-950 font-medium focus:border-red-600 focus:outline-none rounded-lg" />
+            <input 
+              type="text" 
+              required 
+              list="catalog-titles"
+              placeholder="Ej: Shingeki no Kyojin"
+              value={formData.title} 
+              onChange={handleTitleChange} 
+              className="w-full px-4 py-3 bg-white border-2 border-red-200 text-red-950 font-medium focus:border-red-600 focus:outline-none rounded-lg" 
+            />
+            {/* Lista de sugerencias nativa */}
+            <datalist id="catalog-titles">
+              {catalog.map(c => <option key={c.id} value={c.title} />)}
+            </datalist>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
