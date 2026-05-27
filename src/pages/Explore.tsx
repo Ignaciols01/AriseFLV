@@ -8,9 +8,10 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    // MI FILTRO DE SEGURIDAD: Solo confío en la portada de la BD si es una que subiste tú manualmente.
-    // Todas las demás (el cosplay, logos rotos, etc) las ignoro para forzar que se baje la buena de Kitsu.
-    if (fallbackUrl && fallbackUrl.includes('supabase.co')) {
+    // MI FILTRO DE SEGURIDAD MEJORADO: Las imágenes de prueba que importé tienen 'supabase.co' 
+    // pero son cosplays o basura. Para bloquearlas, ahora compruebo estrictamente que vengan
+    // de mi carpeta 'covers/'. Si vienen de otro lado, salto a Kitsu para traer la imagen en HD.
+    if (fallbackUrl && fallbackUrl.includes('covers/')) {
       setImg(fallbackUrl);
       return;
     }
@@ -32,7 +33,7 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
     return () => { isMounted = false };
   }, [title, fallbackUrl]);
 
-  // Si no hay portada en Kitsu o has puesto un título raro, muestro esto en su lugar
+  // Si Kitsu falla o no encuentra el anime, pinto mi bloque vacío con el título
   if (error) {
     return (
       <div className="absolute inset-0 flex flex-col justify-center items-center bg-zinc-100 dark:bg-zinc-900 border border-red-100 dark:border-zinc-800 text-center p-4 transition-colors">

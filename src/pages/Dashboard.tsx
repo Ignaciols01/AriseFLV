@@ -10,9 +10,11 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    // MI FILTRO DE SEGURIDAD: Solo confío en la portada de la BD si es una que subiste tú manualmente.
-    // Todas las demás (el cosplay, logos rotos, etc) las ignoro para forzar que se baje la buena de Kitsu.
-    if (fallbackUrl && fallbackUrl.includes('supabase.co')) {
+    // MI FILTRO DE SEGURIDAD MEJORADO: Me di cuenta de que tenía imágenes de prueba basura (como cosplays) 
+    // guardadas en mi BD con enlaces de supabase. Así que ahora solo confío en la portada si sé 
+    // al 100% que la subí yo a mano (es decir, si la URL incluye explícitamente mi carpeta 'covers/').
+    // Si no está ahí, la ignoro por completo y obligo a que la API de Kitsu me traiga el póster oficial.
+    if (fallbackUrl && fallbackUrl.includes('covers/')) {
       setImg(fallbackUrl);
       return;
     }
@@ -24,7 +26,7 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
         if (isMounted && data.data && data.data.length > 0) {
           setImg(data.data[0].attributes.posterImage.large);
         } else if (isMounted) {
-          setError(true); // Activo el cartelito de error limpio en vez de cargar una imagen tonta
+          setError(true); // Activo mi cartelito de error limpio en vez de cargar una imagen tonta
         }
       })
       .catch(() => {
@@ -34,7 +36,7 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
     return () => { isMounted = false };
   }, [title, fallbackUrl]);
 
-  // Si no hay portada en Kitsu o has puesto un título raro, muestro esto en su lugar
+  // Si no hay portada en Kitsu o he puesto un título raro, muestro esto en su lugar
   if (error) {
     return (
       <div className="absolute inset-0 flex flex-col justify-center items-center bg-zinc-100 dark:bg-zinc-900 border border-red-100 dark:border-zinc-800 text-center p-4 transition-colors">
@@ -44,6 +46,7 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
     );
   }
 
+  // Mientras carga la imagen, muestro mi spinner rojo
   if (!img) return <div className="absolute inset-0 flex justify-center items-center bg-zinc-100 dark:bg-zinc-900 transition-colors duration-300"><Loader2 className="w-6 h-6 text-red-600 animate-spin" /></div>;
 
   return <img src={img} alt={title} className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-110" loading="lazy" />;
