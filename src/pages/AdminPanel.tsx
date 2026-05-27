@@ -23,28 +23,36 @@ export default function AdminPanel() {
   const [deleteCatalogModal, setDeleteCatalogModal] = useState({ isOpen: false, animeId: '' });
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user && isMounted) setCurrentUserId(authData.user.id);
+        
+        const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        if (profiles && isMounted) {
+          setUsers(profiles);
+          const myProfile = profiles.find(u => u.id === authData.user?.id);
+          if (myProfile) setCurrentUserRole(myProfile.role);
+        }
+
+        const { data: catalogData } = await supabase.from('catalog').select('*').order('title', { ascending: true });
+        if (catalogData && isMounted) {
+          setCatalog(catalogData);
+          setCatalogCount(catalogData.length);
+        }
+      } catch (error) {
+        console.error("Error al cargar datos del panel:", error);
+      } finally {
+        if (isMounted) setIsLoading(false); // ESTO EVITA QUE SE QUEDE CONGELADO
+      }
+    };
+
     fetchData();
+
+    return () => { isMounted = false; };
   }, []);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData.user) setCurrentUserId(authData.user.id);
-    
-    const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    if (profiles) {
-      setUsers(profiles);
-      const myProfile = profiles.find(u => u.id === authData.user?.id);
-      if (myProfile) setCurrentUserRole(myProfile.role);
-    }
-
-    const { data: catalogData } = await supabase.from('catalog').select('*').order('title', { ascending: true });
-    if (catalogData) {
-      setCatalog(catalogData);
-      setCatalogCount(catalogData.length);
-    }
-    setIsLoading(false);
-  };
 
   const confirmDelete = async () => {
     await supabase.from('profiles').delete().eq('id', deleteModal.userId);
@@ -86,7 +94,6 @@ export default function AdminPanel() {
   };
 
   return (
-    // SOPORTE DE MODO OSCURO GLOBAL AÑADIDO
     <div className="min-h-screen bg-red-50 dark:bg-gradient-to-br dark:from-red-950 dark:to-[#2a0808] font-sans pb-20 selection:bg-red-500 selection:text-white transition-colors duration-300">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10 animate-in fade-in duration-500">

@@ -3,13 +3,16 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AddAnimeModal from '../components/AddAnimeModal';
 import { supabase } from '../lib/supabaseClient';
-import { Plus, Search, Edit2, Trash2, Star, PlayCircle, CheckCircle2, Clock, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Star, PlayCircle, CheckCircle2, Clock, ChevronRight, Loader2, Film } from 'lucide-react';
 
 const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: string }) => {
   const [img, setImg] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (fallbackUrl) {
+    // MI FILTRO DE SEGURIDAD: Solo confío en la portada de la BD si es una que subiste tú manualmente.
+    // Todas las demás (el cosplay, logos rotos, etc) las ignoro para forzar que se baje la buena de Kitsu.
+    if (fallbackUrl && fallbackUrl.includes('supabase.co')) {
       setImg(fallbackUrl);
       return;
     }
@@ -21,15 +24,25 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
         if (isMounted && data.data && data.data.length > 0) {
           setImg(data.data[0].attributes.posterImage.large);
         } else if (isMounted) {
-          setImg('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&q=80');
+          setError(true); // Activo el cartelito de error limpio en vez de cargar una imagen tonta
         }
       })
       .catch(() => {
-        if (isMounted) setImg('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&q=80');
+        if (isMounted) setError(true);
       });
 
     return () => { isMounted = false };
   }, [title, fallbackUrl]);
+
+  // Si no hay portada en Kitsu o has puesto un título raro, muestro esto en su lugar
+  if (error) {
+    return (
+      <div className="absolute inset-0 flex flex-col justify-center items-center bg-zinc-100 dark:bg-zinc-900 border border-red-100 dark:border-zinc-800 text-center p-4 transition-colors">
+        <Film className="w-8 h-8 text-red-500/30 mb-2" />
+        <span className="text-[11px] font-black uppercase tracking-wider text-red-950 dark:text-zinc-400 line-clamp-3 px-1">{title}</span>
+      </div>
+    );
+  }
 
   if (!img) return <div className="absolute inset-0 flex justify-center items-center bg-zinc-100 dark:bg-zinc-900 transition-colors duration-300"><Loader2 className="w-6 h-6 text-red-600 animate-spin" /></div>;
 
@@ -112,7 +125,6 @@ export default function Dashboard() {
   });
 
   return (
-    // MI MAGIA DE COLORES: bg-red-50 para luz, bg-gradient-to-br oscuro para la noche
     <div className="min-h-screen bg-red-50 dark:bg-gradient-to-br dark:from-red-950 dark:to-[#2a0808] font-sans pb-12 transition-colors duration-300">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
@@ -133,7 +145,6 @@ export default function Dashboard() {
         </div>
 
         <div className="mb-10 bg-white dark:bg-red-50/5 p-6 rounded-xl shadow-xl flex flex-col gap-6 transition-colors border border-red-100 dark:border-transparent">
-          
           <div className="relative w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-red-400" />
             <input 
