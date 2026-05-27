@@ -13,12 +13,21 @@ function App() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // MI LÓGICA PARA CARGAR EL MODO OSCURO/CLARO AL ENTRAR
+  useEffect(() => {
+    const theme = localStorage.getItem('theme');
+    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
     const initSession = async () => {
       try {
-        // 1. Obtenemos la sesión local (esto no requiere red, es instantáneo)
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
 
@@ -26,13 +35,10 @@ function App() {
           setSession(session);
           
           if (session) {
-            // 2. Asignación rápida (optimista) por correo para no bloquear la carga
             const email = session.user.email;
             if (email === 'superadmin@ariseflv.com') setUserRole('superadmin');
-            else if (email === 'admin@ariseflv.com') setUserRole('admin');
             else setUserRole('client');
 
-            // 3. Comprobación en la sombra: pregunta a Supabase el rol real sin que la pantalla espere
             supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle()
               .then(({ data }) => {
                 if (isMounted && data) setUserRole(data.role);
@@ -43,7 +49,6 @@ function App() {
       } catch (error) {
         console.error("Error al cargar la sesión:", error);
       } finally {
-        // 4. Quitamos la pantalla de carga INMEDIATAMENTE
         if (isMounted) setLoading(false);
       }
     };
@@ -57,7 +62,6 @@ function App() {
       if (session) {
         const email = session.user.email;
         if (email === 'superadmin@ariseflv.com') setUserRole('superadmin');
-        else if (email === 'admin@ariseflv.com') setUserRole('admin');
         else setUserRole('client');
         
         supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle()
@@ -77,7 +81,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-950 to-[#2a0808] flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen bg-red-50 dark:bg-gradient-to-br dark:from-red-950 dark:to-[#2a0808] flex flex-col items-center justify-center gap-6 transition-colors duration-300">
         <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
         <div className="text-red-500 font-black tracking-widest uppercase animate-pulse">Iniciando Sistema...</div>
       </div>
@@ -90,7 +94,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-[#0a0a0a] text-white font-sans antialiased">
+      <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0a] text-zinc-900 dark:text-white font-sans antialiased transition-colors duration-300">
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/explore" element={<Explore />} />
