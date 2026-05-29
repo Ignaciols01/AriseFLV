@@ -30,7 +30,7 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
 
   useEffect(() => {
     const fetchCatalog = async () => {
-      const { data } = await supabase.from('catalog').select('*');
+      const { data } = await supabase.from('catalog').select('title');
       if (data) setCatalog(data);
     };
     fetchCatalog();
@@ -50,22 +50,10 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
     setFormData({ ...formData, title: e.target.value });
   };
 
-  // El sistema de auto-completado mágico que se activa al terminar de escribir el título
+  // Magia rediseñada: Ahora SIEMPRE busca la imagen real y oficial en internet
   const handleTitleBlur = async () => {
     if (!formData.title) return;
 
-    // 1. Búsqueda instantánea en tu propio catálogo local
-    const matched = catalog.find(c => c.title.toLowerCase() === formData.title.toLowerCase());
-    if (matched) {
-      setFormData(prev => ({
-        ...prev,
-        genre: matched.genre,
-        cover_url: prev.coverFile ? prev.cover_url : matched.cover_url
-      }));
-      return;
-    }
-
-    // 2. Si es un anime nuevo, buscamos en la base de datos mundial
     setIsSearching(true);
     try {
       const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(formData.title)}&limit=1`);
@@ -74,6 +62,7 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
       if (json.data && json.data.length > 0) {
         const anime = json.data[0];
 
+        // Extraer siempre la mejor calidad posible de la API oficial
         const newCoverUrl = anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || '';
 
         const allTags = [
@@ -117,7 +106,7 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 transition-all animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 transition-all animate-in fade-in duration-200">
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden transform transition-all border border-red-100 dark:border-zinc-800 animate-in zoom-in-95">
         
         <div className="flex justify-between items-center p-6 border-b-2 border-red-50 dark:border-zinc-800 bg-red-50/30 dark:bg-black/20">
@@ -157,7 +146,7 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="block text-xs font-black text-red-800 dark:text-red-300 uppercase tracking-widest">Título</label>
-              {isSearching && <span className="text-[10px] font-bold text-red-500 animate-pulse flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Detectando...</span>}
+              {isSearching && <span className="text-[10px] font-bold text-red-500 animate-pulse flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Buscando póster oficial...</span>}
             </div>
             <div className="relative">
               <input 
@@ -172,6 +161,7 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
               />
               {!isSearching && formData.title && <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400/50" />}
             </div>
+            {/* Seguimos mostrando las sugerencias del catálogo por si el usuario quiere autocompletar el nombre */}
             <datalist id="catalog-titles">
               {catalog.map(c => <option key={c.id} value={c.title} />)}
             </datalist>
