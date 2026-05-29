@@ -30,8 +30,13 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
 
   useEffect(() => {
     const fetchCatalog = async () => {
-      const { data } = await supabase.from('catalog').select('title');
-      if (data) setCatalog(data);
+      try {
+        const { data } = await supabase.from('catalog').select('title');
+        // BLINDAJE
+        setCatalog(data || []);
+      } catch (error) {
+        setCatalog([]);
+      }
     };
     fetchCatalog();
   }, []);
@@ -50,7 +55,6 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
     setFormData({ ...formData, title: e.target.value });
   };
 
-  // Magia rediseñada: Ahora SIEMPRE busca la imagen real y oficial en internet
   const handleTitleBlur = async () => {
     if (!formData.title) return;
 
@@ -61,8 +65,6 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
 
       if (json.data && json.data.length > 0) {
         const anime = json.data[0];
-
-        // Extraer siempre la mejor calidad posible de la API oficial
         const newCoverUrl = anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || '';
 
         const allTags = [
@@ -161,9 +163,8 @@ export default function AddAnimeModal({ isOpen, animeToEdit, onClose, onSave }: 
               />
               {!isSearching && formData.title && <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400/50" />}
             </div>
-            {/* Seguimos mostrando las sugerencias del catálogo por si el usuario quiere autocompletar el nombre */}
             <datalist id="catalog-titles">
-              {catalog.map(c => <option key={c.id} value={c.title} />)}
+              {(catalog || []).map(c => <option key={c.id} value={c.title} />)}
             </datalist>
           </div>
 

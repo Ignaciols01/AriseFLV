@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminPanel() {
+  // Aseguramos que siempre empiecen como un array vacío []
   const [users, setUsers] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +33,7 @@ export default function AdminPanel() {
         
         const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (profiles && isMounted) {
+          // Fallback: si profiles es nulo, seteamos un array vacío
           setUsers(profiles || []);
           const myProfile = (profiles || []).find(u => u.id === authData?.user?.id);
           if (myProfile) setCurrentUserRole(myProfile.role);
@@ -39,6 +41,7 @@ export default function AdminPanel() {
 
         const { data: catalogData } = await supabase.from('catalog').select('*').order('title', { ascending: true });
         if (catalogData && isMounted) {
+           // Fallback: si catalogData es nulo, seteamos un array vacío
           setCatalog(catalogData || []);
           setCatalogCount((catalogData || []).length);
         }
@@ -131,6 +134,7 @@ export default function AdminPanel() {
               <h2 className="text-lg font-black text-red-950 dark:text-white uppercase tracking-widest flex items-center gap-2">
                 <Users className="w-5 h-5 text-red-600" /> Miembros
               </h2>
+              {/* Uso seguro de length */}
               <span className="bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-red-200 dark:border-red-900/50">
                 Total: {users?.length || 0}
               </span>
@@ -206,6 +210,7 @@ export default function AdminPanel() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-zinc-900 divide-y divide-red-50 dark:divide-zinc-800/50 transition-colors">
+                    {/* Uso seguro de fallback [] en el map */}
                     {(catalog || []).map((anime) => (
                       <tr key={anime.id} className="hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-colors duration-200 group">
                         <td className="px-6 py-4 font-black text-red-950 dark:text-white">{anime.title}</td>
