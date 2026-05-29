@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AddAnimeModal from '../components/AddAnimeModal';
 import { supabase } from '../lib/supabaseClient';
-import { Plus, Search, Edit2, Trash2, Star, PlayCircle, CheckCircle2, Clock, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Star, PlayCircle, CheckCircle2, Clock, ChevronRight, Loader2, AlertTriangle } from 'lucide-react';
 
 const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: string }) => {
   const [img, setImg] = useState<string | null>(null);
@@ -45,6 +45,9 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [animeToEdit, setAnimeToEdit] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Estado para el nuevo modal de eliminación
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, animeId: '' });
 
   const genres = ['Todos', 'Shonen', 'Seinen', 'Shojo', 'Isekai', 'Slice of Life'];
 
@@ -68,11 +71,16 @@ export default function Dashboard() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("¿Seguro que quieres eliminar este anime?")) {
-      await supabase.from('animes').delete().eq('id', id);
-      setAnimes((animes || []).filter(a => a?.id !== id));
-    }
+  // Prepara el modal para abrirse
+  const handleDeleteClick = (id: string) => {
+    setDeleteModal({ isOpen: true, animeId: id });
+  };
+
+  // Ejecuta la eliminación real en la base de datos
+  const confirmDelete = async () => {
+    await supabase.from('animes').delete().eq('id', deleteModal.animeId);
+    setAnimes((animes || []).filter(a => a?.id !== deleteModal.animeId));
+    setDeleteModal({ isOpen: false, animeId: '' });
   };
 
   const handleSaveAnime = async (formData: any) => {
@@ -104,7 +112,6 @@ export default function Dashboard() {
         title: formData.title, genre: formData.genre, status: formData.status, rating: formData.rating, cover_url: publicUrl, user_id: userData.user?.id
       }]).select();
       
-      // BLINDAJE: Solo lo añadimos a la lista si la base de datos devuelve un registro válido
       if (data && data.length > 0) {
         setAnimes([data[0], ...(animes || [])]);
       }
@@ -117,7 +124,6 @@ export default function Dashboard() {
     setIsModalOpen(true);
   };
 
-  // BLINDAJE: Filtro 100% a prueba de fallos (ignora títulos nulos)
   const filteredAnimes = (animes || []).filter((anime) => {
     if (!anime) return false;
     const safeTitle = anime.title || 'Sin Título';
@@ -199,7 +205,8 @@ export default function Dashboard() {
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-zinc-900/95 rounded-lg shadow-lg flex border border-red-100 dark:border-zinc-700 z-30">
                   <button onClick={() => openEditModal(anime)} className="p-2.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"><Edit2 className="w-4 h-4" /></button>
                   <div className="w-px bg-red-100 dark:bg-zinc-700"></div>
-                  <button onClick={() => handleDelete(anime?.id)} className="p-2.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
+                  {/* AQUÍ ESTÁ EL CAMBIO: Llama a handleDeleteClick en lugar de al window.confirm */}
+                  <button onClick={() => handleDeleteClick(anime?.id)} className="p-2.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
@@ -212,6 +219,23 @@ export default function Dashboard() {
       </main>
 
       <AddAnimeModal isOpen={isModalOpen} animeToEdit={animeToEdit} onClose={() => setIsModalOpen(false)} onSave={handleSaveAnime} />
+
+      {/* NUEVO MODAL DE ELIMINACIÓN */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm overflow-hidden p-8 text-center animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 border-b-4 border-red-600 shadow-2xl border-x border-t border-zinc-200 dark:border-zinc-800">
+            <div className="mx-auto w-20 h-20 bg-red-50 dark:bg-red-950/30 rounded-full flex items-center justify-center mb-6 border border-red-100 dark:border-red-900/50">
+              <AlertTriangle className="w-10 h-10 text-red-600 animate-pulse" />
+            </div>
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-white uppercase tracking-tight mb-3">¿Eliminar Serie?</h2>
+            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-8">Esta acción borrará la serie de tu bóveda personal de forma permanente.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={confirmDelete} className="w-full py-4 text-sm font-black text-white bg-red-600 hover:bg-red-700 rounded-xl uppercase tracking-widest shadow-lg transition-all hover:-translate-y-0.5">Eliminar</button>
+              <button onClick={() => setDeleteModal({ isOpen: false, animeId: '' })} className="w-full py-4 text-sm font-black text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl uppercase tracking-widest transition-all">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

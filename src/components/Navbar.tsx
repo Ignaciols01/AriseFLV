@@ -1,130 +1,159 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Play, LogOut, Shield, User, Settings as SettingsIcon } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { LogOut, LayoutDashboard, Globe, Shield, Menu, X, Sparkles, User } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 
 export default function Navbar() {
   const [session, setSession] = useState<any>(null);
-  const [role, setRole] = useState<string | null>(null);
-  
-  // Mi nuevo estado para los datos del usuario y el modal de ajustes
-  const [userData, setUserData] = useState({ id: '', username: '' });
+  const [role, setRole] = useState<string>('client');
+  const [username, setUsername] = useState<string>('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchUserData(session.user.id);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        fetchUserData(session.user.id);
-      } else {
-        setRole(null);
-        setUserData({ id: '', username: '' });
+    let isMounted = true;
+    
+    const getUser = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && isMounted) {
+          setSession(session);
+          
+          const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          if (data && isMounted) {
+            setRole(data.role || 'client');
+            setUsername(data.username || session.user.email?.split('@')[0] || 'Usuario');
+          }
+        }
+      } catch (err) {
+        console.error("Error al sincronizar datos de navegación:", err);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    getUser();
+    
+    return () => { isMounted = false };
   }, []);
-
-  // Mi función para traerme el rol y el nombre de usuario
-  const fetchUserData = async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('role, username').eq('id', userId).single();
-    if (data) {
-      setRole(data.role);
-      setUserData({ id: userId, username: data.username });
-    }
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/');
+    navigate('/login');
   };
+
+  const isAdmin = role === 'admin' || role === 'superadmin';
 
   return (
     <>
-      <nav className="flex items-center justify-between px-4 sm:px-6 py-4 bg-white dark:bg-black border-b-2 border-red-100 dark:border-red-950 sticky top-0 z-40 transition-colors duration-300">
-        
-        <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-2 text-2xl font-black tracking-tighter text-red-950 dark:text-white hover:opacity-90 transition-opacity">
-            <Play className="w-6 h-6 text-red-600 fill-current" />
-            <span>ARISE<span className="text-red-600">FLV</span></span>
-          </Link>
+      <nav className="bg-white/90 dark:bg-[#0a0a0a]/90 backdrop-blur-md sticky top-0 z-40 border-b border-red-100 dark:border-red-900/30 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="bg-red-600 p-1.5 rounded-lg group-hover:scale-110 transition-transform shadow-lg shadow-red-600/30">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-black text-xl text-red-950 dark:text-white tracking-widest uppercase">Arise<span className="text-red-600">FLV</span></span>
+            </Link>
 
-          {(role === 'admin' || role === 'superadmin') && (
-            <span className="hidden sm:flex items-center gap-1 bg-red-600 text-white text-[10px] px-2.5 py-1 rounded-md font-black tracking-widest uppercase ml-2 shadow-sm animate-in fade-in zoom-in duration-300">
-              <Shield className="w-3 h-3" /> {role === 'superadmin' ? 'SuperAdmin' : 'Admin'}
-            </span>
-          )}
-          {role === 'client' && (
-            <span className="hidden sm:flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px] px-2.5 py-1 rounded-md font-black tracking-widest uppercase ml-2 animate-in fade-in zoom-in duration-300 transition-colors">
-              <User className="w-3 h-3" /> Cliente
-            </span>
-          )}
-        </div>
-        
-        <div className="flex gap-4 sm:gap-6 items-center">
-          {!session ? (
-            <>
-              <Link to="/explore" className="hidden md:block text-sm font-bold text-red-800/60 dark:text-red-100/50 hover:text-red-600 dark:hover:text-white transition-colors uppercase tracking-widest">
-                Explorar
+            {/* Menú de Escritorio */}
+            <div className="hidden md:flex items-center gap-6">
+              <Link to="/explore" className={`text-sm font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${location.pathname === '/explore' ? 'text-red-600 dark:text-red-500' : 'text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400'}`}>
+                <Globe className="w-4 h-4" /> Explorar
               </Link>
-              <Link to="/login" className="px-5 sm:px-6 py-2 text-xs sm:text-sm font-black text-white bg-red-600 hover:bg-red-700 transition-all uppercase tracking-wider rounded-lg shadow-md">
-                Acceder
-              </Link>
-            </>
-          ) : (
-            <>
-              {(role === 'admin' || role === 'superadmin') && location.pathname !== '/admin' && (
-                <Link to="/admin" className="hidden md:block text-xs font-bold text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors uppercase tracking-widest">
-                  Panel Admin
-                </Link>
-              )}
-              {role === 'client' && location.pathname !== '/dashboard' && (
-                <Link to="/dashboard" className="hidden md:block text-xs font-bold text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors uppercase tracking-widest">
-                  Mi Catálogo
-                </Link>
-              )}
               
-              <Link to="/explore" className="hidden md:block text-xs font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors uppercase tracking-widest border-l border-zinc-300 dark:border-zinc-800 pl-6 ml-2">
-                Explorar
-              </Link>
+              {session && (
+                <Link to="/dashboard" className={`text-sm font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${location.pathname === '/dashboard' ? 'text-red-600 dark:text-red-500' : 'text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400'}`}>
+                  <LayoutDashboard className="w-4 h-4" /> Bóveda
+                </Link>
+              )}
 
-              {/* MI NUEVO BOTÓN DE CONFIGURACIÓN */}
-              <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className="p-2 text-zinc-500 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded-lg ml-2 hover:bg-red-50 dark:hover:bg-red-950/30"
-                title="Configuración de Cuenta"
-              >
-                <SettingsIcon className="w-5 h-5" />
-              </button>
+              {session && isAdmin && (
+                <Link to="/admin" className={`text-sm font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${location.pathname === '/admin' ? 'text-red-600 dark:text-red-500' : 'text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400'}`}>
+                  <Shield className="w-4 h-4" /> Admin
+                </Link>
+              )}
+            </div>
 
-              <button 
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-black text-red-600 dark:text-red-400 border border-red-200 dark:border-red-950 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950 hover:text-red-700 dark:hover:text-red-300 transition-all uppercase tracking-wider rounded-lg ml-1"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Salir</span>
+            {/* Acciones de Usuario (Escritorio) */}
+            <div className="hidden md:flex items-center gap-4">
+              {session ? (
+                <>
+                  <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-zinc-800/60 transition-colors border border-transparent hover:border-red-100 dark:hover:border-zinc-700">
+                    <div className="w-7 h-7 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center font-black text-xs border border-red-200 dark:border-red-800">
+                      {username ? username.charAt(0).toUpperCase() : <User className="w-3 h-3" />}
+                    </div>
+                    <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{username}</span>
+                  </button>
+                  <button onClick={handleLogout} className="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" title="Cerrar Sesión">
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                </>
+              ) : (
+                <Link to="/login" className="px-5 py-2 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-lg hover:bg-red-700 shadow-md shadow-red-600/20 transition-all hover:-translate-y-0.5">
+                  Acceder
+                </Link>
+              )}
+            </div>
+
+            {/* Botón de Menú Móvil */}
+            <div className="md:hidden flex items-center">
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-zinc-500 hover:text-red-600 dark:text-zinc-400 p-2">
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
-            </>
-          )}
+            </div>
+          </div>
         </div>
+
+        {/* Desplegable Móvil */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-white dark:bg-[#0a0a0a] border-b border-red-100 dark:border-red-900/30 px-4 pt-2 pb-6 shadow-xl animate-in slide-in-from-top-2">
+            <div className="flex flex-col gap-4 mt-4">
+              <Link to="/explore" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                <Globe className="w-4 h-4" /> Explorar
+              </Link>
+              {session && (
+                <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                  <LayoutDashboard className="w-4 h-4" /> Bóveda
+                </Link>
+              )}
+              {session && isAdmin && (
+                <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                  <Shield className="w-4 h-4" /> Panel Admin
+                </Link>
+              )}
+              {session ? (
+                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                  <button onClick={() => { setIsSettingsOpen(true); setIsMobileMenuOpen(false); }} className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                    <User className="w-4 h-4" /> Ajustes
+                  </button>
+                  <button onClick={handleLogout} className="text-sm font-black uppercase tracking-widest text-red-600 flex items-center gap-2">
+                    Salir <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <Link to="/login" className="w-full text-center py-3 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-md shadow-red-600/20">
+                  Acceder al Sistema
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* Aquí inyecto mi modal de configuración de forma invisible hasta que se llame */}
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-        currentUsername={userData.username} 
-        userId={userData.id} 
-      />
+      {/* Renderizado Seguro del Modal de Ajustes */}
+      {session && (
+        <SettingsModal 
+          isOpen={isSettingsOpen} 
+          onClose={() => setIsSettingsOpen(false)} 
+          currentUsername={username} 
+          userId={session.user.id} 
+        />
+      )}
     </>
   );
 }
