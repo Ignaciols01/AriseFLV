@@ -1,38 +1,41 @@
 import { Link } from 'react-router-dom';
-import { Home, Search, AlertTriangle } from 'lucide-react';
-import Navbar from '../components/Navbar';
+import { ShieldAlert, ArrowLeft, Home } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-950 to-[#2a0808] font-sans flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 flex flex-col items-center justify-center px-6 text-center relative z-10">
-        <AlertTriangle className="w-24 h-24 text-red-500 mb-6 drop-shadow-lg" />
+    <div className="min-h-screen bg-gradient-to-br from-[#1a0505] to-[#0a0a0a] flex flex-col items-center justify-center p-4 selection:bg-red-600 selection:text-white">
+      <div className="text-center space-y-6 max-w-md animate-in fade-in zoom-in-95 duration-300">
         
-        <h1 className="text-7xl font-black text-white mb-4 tracking-tighter">ERROR 404</h1>
-        
-        <p className="text-lg text-red-200/80 font-medium mb-10 max-w-md">
-          Parece que te has perdido en la bóveda. La página que buscas no existe o ha sido movida a otro directorio.
-        </p>
-
-        <div className="relative w-full max-w-md mb-10">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-red-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar en el catálogo..." 
-            className="w-full h-14 bg-red-50 rounded-xl border-2 border-red-200 px-12 text-red-950 font-bold focus:outline-none focus:border-red-500 shadow-lg"
-          />
+        {/* Icono de Advertencia Estilizado */}
+        <div className="mx-auto w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20 shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+          <ShieldAlert className="w-12 h-12 text-red-500 animate-pulse" />
         </div>
 
-        <Link 
-          to="/" 
-          className="px-8 py-4 bg-red-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-xl hover:-translate-y-1 flex items-center gap-3"
-        >
-          <Home className="w-5 h-5" />
-          Volver al Inicio
-        </Link>
-      </main>
+        {/* Textos de Error */}
+        <div className="space-y-2">
+          <h1 className="text-7xl font-black text-white tracking-tighter">404</h1>
+          <h2 className="text-xl font-black text-red-500 uppercase tracking-widest">Dimensión Desconocida</h2>
+          <p className="text-sm font-medium text-zinc-400 max-w-xs mx-auto">
+            La página que buscas no existe o ha sido movida a otra bóveda del sistema.
+          </p>
+        </div>
+
+        {/* Botones de Retorno Seguro */}
+        <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
+          <Link 
+            to="/" 
+            className="h-12 px-6 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-red-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+            <Home className="w-4 h-4" /> Volver al Inicio
+          </Link>
+          <button 
+            onClick={() => window.history.back()} 
+            className="h-12 px-6 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-black text-xs uppercase tracking-widest rounded-xl border border-zinc-800/80 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" /> Regresar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
