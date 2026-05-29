@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 
 export default function AdminPanel() {
-  // Aseguramos que siempre empiecen como un array vacío []
   const [users, setUsers] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,15 +32,13 @@ export default function AdminPanel() {
         
         const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (profiles && isMounted) {
-          // Fallback: si profiles es nulo, seteamos un array vacío
           setUsers(profiles || []);
-          const myProfile = (profiles || []).find(u => u.id === authData?.user?.id);
+          const myProfile = (profiles || []).find(u => u?.id === authData?.user?.id);
           if (myProfile) setCurrentUserRole(myProfile.role);
         }
 
         const { data: catalogData } = await supabase.from('catalog').select('*').order('title', { ascending: true });
         if (catalogData && isMounted) {
-           // Fallback: si catalogData es nulo, seteamos un array vacío
           setCatalog(catalogData || []);
           setCatalogCount((catalogData || []).length);
         }
@@ -59,7 +56,7 @@ export default function AdminPanel() {
 
   const confirmDelete = async () => {
     await supabase.from('profiles').delete().eq('id', deleteModal.userId);
-    setUsers((users || []).filter(u => u.id !== deleteModal.userId));
+    setUsers((users || []).filter(u => u?.id !== deleteModal.userId));
     setDeleteModal({ isOpen: false, userId: '' });
   };
 
@@ -70,7 +67,7 @@ export default function AdminPanel() {
       window.location.href = '/dashboard';
       return;
     }
-    setUsers((users || []).map(u => u.id === editModal.user.id ? { ...u, role: editModal.user.role } : u));
+    setUsers((users || []).map(u => u?.id === editModal.user.id ? { ...u, role: editModal.user.role } : u));
     setEditModal({ isOpen: false, user: { id: '', name: '', role: '' } });
   };
 
@@ -81,17 +78,22 @@ export default function AdminPanel() {
 
     if (catalogModal.anime) {
       const { data } = await supabase.from('catalog').update(animeData).eq('id', catalogModal.anime.id).select();
-      if (data) setCatalog((catalog || []).map(a => a.id === catalogModal.anime.id ? data[0] : a));
+      if (data && data.length > 0) {
+        setCatalog((catalog || []).map(a => a?.id === catalogModal.anime.id ? data[0] : a));
+      }
     } else {
       const { data } = await supabase.from('catalog').insert([animeData]).select();
-      if (data) { setCatalog([...(catalog || []), data[0]]); setCatalogCount(prev => prev + 1); }
+      if (data && data.length > 0) { 
+        setCatalog([...(catalog || []), data[0]]); 
+        setCatalogCount(prev => prev + 1); 
+      }
     }
     setCatalogModal({ isOpen: false, anime: null });
   };
 
   const confirmDeleteCatalog = async () => {
     await supabase.from('catalog').delete().eq('id', deleteCatalogModal.animeId);
-    setCatalog((catalog || []).filter(a => a.id !== deleteCatalogModal.animeId));
+    setCatalog((catalog || []).filter(a => a?.id !== deleteCatalogModal.animeId));
     setCatalogCount(prev => prev - 1);
     setDeleteCatalogModal({ isOpen: false, animeId: '' });
   };
@@ -134,7 +136,6 @@ export default function AdminPanel() {
               <h2 className="text-lg font-black text-red-950 dark:text-white uppercase tracking-widest flex items-center gap-2">
                 <Users className="w-5 h-5 text-red-600" /> Miembros
               </h2>
-              {/* Uso seguro de length */}
               <span className="bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-red-200 dark:border-red-900/50">
                 Total: {users?.length || 0}
               </span>
@@ -153,8 +154,10 @@ export default function AdminPanel() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-zinc-900 divide-y divide-red-50 dark:divide-zinc-800/50 transition-colors">
-                    {(users || []).map((user) => (
-                      <tr key={user.id} className="hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-colors duration-200 group">
+                    {(users || []).map((user) => {
+                      if (!user) return null;
+                      return (
+                      <tr key={user.id || Math.random()} className="hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-colors duration-200 group">
                         <td className="px-6 py-4 flex flex-col">
                           <span className="font-black text-lg text-red-950 dark:text-white">{user.username || 'Usuario Anónimo'} {user.id === currentUserId && <span className="text-xs text-red-500 ml-2">(Tú)</span>}</span>
                           <span className="text-xs text-red-500/70 dark:text-red-400/70 uppercase font-bold">{user.email}</span>
@@ -177,7 +180,7 @@ export default function AdminPanel() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -210,11 +213,12 @@ export default function AdminPanel() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-zinc-900 divide-y divide-red-50 dark:divide-zinc-800/50 transition-colors">
-                    {/* Uso seguro de fallback [] en el map */}
-                    {(catalog || []).map((anime) => (
-                      <tr key={anime.id} className="hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-colors duration-200 group">
-                        <td className="px-6 py-4 font-black text-red-950 dark:text-white">{anime.title}</td>
-                        <td className="px-6 py-4"><span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-widest bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">{anime.genre}</span></td>
+                    {(catalog || []).map((anime) => {
+                      if (!anime) return null;
+                      return (
+                      <tr key={anime.id || Math.random()} className="hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-colors duration-200 group">
+                        <td className="px-6 py-4 font-black text-red-950 dark:text-white">{anime.title || 'Fantasma Guardado'}</td>
+                        <td className="px-6 py-4"><span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-widest bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">{anime.genre || 'Desconocido'}</span></td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => setCatalogModal({ isOpen: true, anime })} className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-white hover:bg-zinc-800 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md transition-all duration-300"><Edit className="w-4 h-4" /></button>
@@ -222,7 +226,7 @@ export default function AdminPanel() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -236,7 +240,7 @@ export default function AdminPanel() {
             {[
               { label: 'Base de Datos', value: catalogCount || 0, sub: 'Animes en catálogo', icon: Database, color: 'indigo' },
               { label: 'Cuentas Creadas', value: users?.length || 0, sub: 'Usuarios registrados', icon: Users, color: 'red' },
-              { label: 'Último Ingreso', value: (users || []).length > 0 ? new Date(users[0].created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'N/A', sub: 'Fecha de registro', icon: Calendar, color: 'emerald' },
+              { label: 'Último Ingreso', value: (users || []).length > 0 && users[0] ? new Date(users[0].created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'N/A', sub: 'Fecha de registro', icon: Calendar, color: 'emerald' },
             ].map((stat, i) => (
               <div key={i} className={`bg-white dark:bg-zinc-900 p-6 rounded-xl border-l-8 border-${stat.color}-500 shadow-xl hover:-translate-y-1 transition-all duration-300`}>
                 <div className="flex justify-between items-start mb-4">

@@ -14,7 +14,9 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
     }
 
     let isMounted = true;
-    fetch(`https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(title)}`)
+    const safeTitle = title || 'unknown';
+    
+    fetch(`https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(safeTitle)}`)
       .then(res => res.json())
       .then(data => {
         if (isMounted && data.data && data.data.length > 0) {
@@ -32,7 +34,7 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
 
   if (!img) return <div className="absolute inset-0 flex justify-center items-center bg-zinc-900"><Loader2 className="w-6 h-6 text-red-600 animate-spin" /></div>;
 
-  return <img src={img} alt={title} className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-110" loading="lazy" />;
+  return <img src={img} alt={title || 'Anime'} className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-110" loading="lazy" />;
 };
 
 export default function Explore() {
@@ -66,8 +68,6 @@ export default function Explore() {
       clearTimeout(timeoutId);
       
       if (error) throw error;
-      
-      // BLINDAJE: Siempre array
       setCatalog(data || []);
       setIsLoading(false);
     } catch (err: any) {
@@ -80,11 +80,14 @@ export default function Explore() {
     }
   };
 
-  // BLINDAJE: Filtro seguro
-  const filteredCatalog = (catalog || []).filter(c =>
-    (filterGenre === 'Todos' || c.genre === filterGenre) &&
-    c.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // BLINDAJE
+  const filteredCatalog = (catalog || []).filter(c => {
+    if (!c) return false;
+    const safeTitle = c.title || 'Sin Título';
+    const safeGenre = c.genre || 'Desconocido';
+    return (filterGenre === 'Todos' || safeGenre === filterGenre) &&
+           safeTitle.toLowerCase().includes((searchTerm || '').toLowerCase());
+  });
 
   return (
     <div className="min-h-screen bg-red-50 dark:bg-gradient-to-br dark:from-red-950 dark:to-[#2a0808] font-sans pb-12 transition-colors duration-300">
@@ -142,16 +145,16 @@ export default function Explore() {
                 Reintentar Conexión
             </button>
           </div>
-        ) : filteredCatalog?.length > 0 ? (
+        ) : filteredCatalog.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {filteredCatalog.map((anime) => (
-              <div key={anime.id} className="group rounded-xl bg-white dark:bg-zinc-900 shadow-xl overflow-hidden relative flex flex-col border border-red-100 dark:border-zinc-800 hover:-translate-y-2 transition-all duration-300">
+              <div key={anime?.id || Math.random()} className="group rounded-xl bg-white dark:bg-zinc-900 shadow-xl overflow-hidden relative flex flex-col border border-red-100 dark:border-zinc-800 hover:-translate-y-2 transition-all duration-300">
                 <div className="aspect-[3/4] bg-zinc-100 dark:bg-zinc-900 relative overflow-hidden">
-                  <AnimePoster title={anime.title} fallbackUrl={anime.cover_url} />
+                  <AnimePoster title={anime?.title || 'Sin Título'} fallbackUrl={anime?.cover_url} />
                 </div>
                 <div className="p-4 bg-white dark:bg-zinc-900 relative z-20">
-                  <h3 className="font-black text-red-950 dark:text-white text-lg leading-tight truncate">{anime.title}</h3>
-                  <p className="text-xs text-red-500 dark:text-red-400 font-bold uppercase mt-1">{anime.genre}</p>
+                  <h3 className="font-black text-red-950 dark:text-white text-lg leading-tight truncate">{anime?.title || 'Fantasma Guardado'}</h3>
+                  <p className="text-xs text-red-500 dark:text-red-400 font-bold uppercase mt-1">{anime?.genre || 'Desconocido'}</p>
                 </div>
               </div>
             ))}

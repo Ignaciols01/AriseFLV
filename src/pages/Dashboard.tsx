@@ -16,7 +16,9 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
     }
 
     let isMounted = true;
-    fetch(`https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(title)}`)
+    const safeTitle = title || 'unknown';
+    
+    fetch(`https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(safeTitle)}`)
       .then(res => res.json())
       .then(data => {
         if (isMounted && data.data && data.data.length > 0) {
@@ -33,7 +35,7 @@ const AnimePoster = ({ title, fallbackUrl }: { title: string, fallbackUrl?: stri
   }, [title, fallbackUrl]);
 
   if (!img) return <div className="absolute inset-0 flex justify-center items-center bg-zinc-900"><Loader2 className="w-6 h-6 text-red-600 animate-spin" /></div>;
-  return <img src={img} alt={title} className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-110" loading="lazy" />;
+  return <img src={img} alt={title || 'Anime'} className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-110" loading="lazy" />;
 };
 
 export default function Dashboard() {
@@ -54,9 +56,9 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const { data } = await supabase.from('animes').select('*').eq('user_id', userData.user?.id).order('created_at', { ascending: false });
+      if (!userData.user) return;
       
-      // BLINDAJE: Siempre establecemos un array, aunque data sea null
+      const { data } = await supabase.from('animes').select('*').eq('user_id', userData.user.id).order('created_at', { ascending: false });
       setAnimes(data || []);
     } catch (error) {
       console.error("Error cargando animes:", error);
@@ -69,7 +71,7 @@ export default function Dashboard() {
   const handleDelete = async (id: string) => {
     if (window.confirm("¿Seguro que quieres eliminar este anime?")) {
       await supabase.from('animes').delete().eq('id', id);
-      setAnimes((animes || []).filter(a => a.id !== id));
+      setAnimes((animes || []).filter(a => a?.id !== id));
     }
   };
 
@@ -94,13 +96,18 @@ export default function Dashboard() {
         title: formData.title, genre: formData.genre, status: formData.status, rating: formData.rating, cover_url: publicUrl
       }).eq('id', formData.id).select();
       
-      if (data) setAnimes((animes || []).map(a => a.id === formData.id ? data[0] : a));
+      if (data && data.length > 0) {
+        setAnimes((animes || []).map(a => a?.id === formData.id ? data[0] : a));
+      }
     } else {
       const { data } = await supabase.from('animes').insert([{
         title: formData.title, genre: formData.genre, status: formData.status, rating: formData.rating, cover_url: publicUrl, user_id: userData.user?.id
       }]).select();
       
-      if (data) setAnimes([data[0], ...(animes || [])]);
+      // BLINDAJE: Solo lo añadimos a la lista si la base de datos devuelve un registro válido
+      if (data && data.length > 0) {
+        setAnimes([data[0], ...(animes || [])]);
+      }
     }
     setIsModalOpen(false); 
   };
@@ -110,10 +117,13 @@ export default function Dashboard() {
     setIsModalOpen(true);
   };
 
-  // BLINDAJE: Filtramos siempre sobre un array seguro
+  // BLINDAJE: Filtro 100% a prueba de fallos (ignora títulos nulos)
   const filteredAnimes = (animes || []).filter((anime) => {
-    return (filterGenre === 'Todos' || anime.genre === filterGenre) && 
-           anime.title.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!anime) return false;
+    const safeTitle = anime.title || 'Sin Título';
+    const safeGenre = anime.genre || 'Desconocido';
+    return (filterGenre === 'Todos' || safeGenre === filterGenre) && 
+           safeTitle.toLowerCase().includes((searchTerm || '').toLowerCase());
   });
 
   return (
@@ -167,29 +177,29 @@ export default function Dashboard() {
 
         {isLoading ? (
           <div className="flex justify-center py-24"><Loader2 className="w-12 h-12 text-red-500 animate-spin" /></div>
-        ) : filteredAnimes?.length > 0 ? (
+        ) : filteredAnimes.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {filteredAnimes.map((anime) => (
-              <div key={anime.id} className="group rounded-xl bg-white dark:bg-zinc-900 shadow-xl hover:-translate-y-1 transition-all overflow-hidden relative flex flex-col border border-red-100 dark:border-zinc-800">
+              <div key={anime?.id || Math.random()} className="group rounded-xl bg-white dark:bg-zinc-900 shadow-xl hover:-translate-y-1 transition-all overflow-hidden relative flex flex-col border border-red-100 dark:border-zinc-800">
                 <div className="aspect-[3/4] bg-zinc-100 dark:bg-zinc-900 relative overflow-hidden">
-                  <AnimePoster title={anime.title} fallbackUrl={anime.cover_url} />
+                  <AnimePoster title={anime?.title || 'Sin Título'} fallbackUrl={anime?.cover_url} />
                 </div>
                 <div className="p-5 flex flex-col flex-1 bg-white dark:bg-zinc-900 relative z-20">
                   <div className="flex justify-between mb-3">
                     <span className="text-xs font-bold text-blue-800 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-md border border-blue-200 dark:border-blue-800/50">
-                      {anime.status === 'Viendo' && <><PlayCircle className="w-3 h-3 inline mr-1"/> Viendo</>}
-                      {anime.status === 'Completado' && <><CheckCircle2 className="w-3 h-3 inline mr-1"/> Completado</>}
-                      {anime.status === 'Pendiente' && <><Clock className="w-3 h-3 inline mr-1"/> Pendiente</>}
+                      {anime?.status === 'Viendo' && <><PlayCircle className="w-3 h-3 inline mr-1"/> Viendo</>}
+                      {anime?.status === 'Completado' && <><CheckCircle2 className="w-3 h-3 inline mr-1"/> Completado</>}
+                      {anime?.status === 'Pendiente' && <><Clock className="w-3 h-3 inline mr-1"/> Pendiente</>}
                     </span>
-                    <span className="flex items-center text-red-600 dark:text-red-400 text-xs font-black bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md border border-red-100 dark:border-red-900/50"><Star className="w-3 h-3 mr-1 fill-current" />{anime.rating}</span>
+                    <span className="flex items-center text-red-600 dark:text-red-400 text-xs font-black bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md border border-red-100 dark:border-red-900/50"><Star className="w-3 h-3 mr-1 fill-current" />{anime?.rating || 0}</span>
                   </div>
-                  <h3 className="font-black text-red-950 dark:text-white text-lg leading-tight line-clamp-2">{anime.title}</h3>
-                  <p className="text-xs text-red-500 dark:text-red-400 font-bold uppercase mt-auto pt-3">{anime.genre}</p>
+                  <h3 className="font-black text-red-950 dark:text-white text-lg leading-tight line-clamp-2">{anime?.title || 'Fantasma Guardado'}</h3>
+                  <p className="text-xs text-red-500 dark:text-red-400 font-bold uppercase mt-auto pt-3">{anime?.genre || 'Desconocido'}</p>
                 </div>
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-zinc-900/95 rounded-lg shadow-lg flex border border-red-100 dark:border-zinc-700 z-30">
                   <button onClick={() => openEditModal(anime)} className="p-2.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"><Edit2 className="w-4 h-4" /></button>
                   <div className="w-px bg-red-100 dark:bg-zinc-700"></div>
-                  <button onClick={() => handleDelete(anime.id)} className="p-2.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(anime?.id)} className="p-2.5 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
