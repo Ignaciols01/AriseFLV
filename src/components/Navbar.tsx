@@ -23,7 +23,7 @@ export default function Navbar() {
         if (session && isMounted) {
           setSession(session);
           
-          const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
           if (data && isMounted) {
             setRole(data.role || 'client');
             setUsername(data.username || session.user.email?.split('@')[0] || 'Usuario');
@@ -66,7 +66,8 @@ export default function Navbar() {
                 <Globe className="w-4 h-4" /> Explorar
               </Link>
               
-              {session && (
+              {/* Ajustado: La Bóveda ahora solo es visible si no es administrador */}
+              {session && !isAdmin && (
                 <Link to="/dashboard" className={`text-sm font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${location.pathname === '/dashboard' ? 'text-red-600 dark:text-red-500' : 'text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400'}`}>
                   <LayoutDashboard className="w-4 h-4" /> Bóveda
                 </Link>
@@ -79,7 +80,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Acciones de Usuario (Escritorio) */}
+            {/* Acciones de Usuario */}
             <div className="hidden md:flex items-center gap-4">
               {session ? (
                 <>
@@ -89,18 +90,18 @@ export default function Navbar() {
                     </div>
                     <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{username}</span>
                   </button>
-                  <button onClick={handleLogout} className="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" title="Cerrar Sesión">
+                  <button onClick={handleLogout} className="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
                     <LogOut className="w-5 h-5" />
                   </button>
                 </>
               ) : (
-                <Link to="/login" className="px-5 py-2 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-lg hover:bg-red-700 shadow-md shadow-red-600/20 transition-all hover:-translate-y-0.5">
+                <Link to="/login" className="px-5 py-2 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-lg hover:bg-red-700 shadow-md transition-all hover:-translate-y-0.5">
                   Acceder
                 </Link>
               )}
             </div>
 
-            {/* Botón de Menú Móvil */}
+            {/* Menú Móvil */}
             <div className="md:hidden flex items-center">
               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-zinc-500 hover:text-red-600 dark:text-zinc-400 p-2">
                 {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -116,11 +117,14 @@ export default function Navbar() {
               <Link to="/explore" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
                 <Globe className="w-4 h-4" /> Explorar
               </Link>
-              {session && (
+              
+              {/* Ajustado en el menú desplegable móvil */}
+              {session && !isAdmin && (
                 <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
                   <LayoutDashboard className="w-4 h-4" /> Bóveda
                 </Link>
               )}
+              
               {session && isAdmin && (
                 <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
                   <Shield className="w-4 h-4" /> Panel Admin
@@ -136,7 +140,7 @@ export default function Navbar() {
                   </button>
                 </div>
               ) : (
-                <Link to="/login" className="w-full text-center py-3 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-md shadow-red-600/20">
+                <Link to="/login" className="w-full text-center py-3 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-md">
                   Acceder al Sistema
                 </Link>
               )}
@@ -145,7 +149,6 @@ export default function Navbar() {
         )}
       </nav>
 
-      {/* Renderizado Seguro del Modal de Ajustes */}
       {session && (
         <SettingsModal 
           isOpen={isSettingsOpen} 
