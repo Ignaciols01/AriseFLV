@@ -28,24 +28,24 @@ export default function AdminPanel() {
     const fetchData = async () => {
       try {
         const { data: authData } = await supabase.auth.getUser();
-        if (authData.user && isMounted) setCurrentUserId(authData.user.id);
+        if (authData?.user && isMounted) setCurrentUserId(authData.user.id);
         
         const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (profiles && isMounted) {
-          setUsers(profiles);
-          const myProfile = profiles.find(u => u.id === authData.user?.id);
+          setUsers(profiles || []);
+          const myProfile = (profiles || []).find(u => u.id === authData?.user?.id);
           if (myProfile) setCurrentUserRole(myProfile.role);
         }
 
         const { data: catalogData } = await supabase.from('catalog').select('*').order('title', { ascending: true });
         if (catalogData && isMounted) {
-          setCatalog(catalogData);
-          setCatalogCount(catalogData.length);
+          setCatalog(catalogData || []);
+          setCatalogCount((catalogData || []).length);
         }
       } catch (error) {
         console.error("Error al cargar datos del panel:", error);
       } finally {
-        if (isMounted) setIsLoading(false); // ESTO EVITA QUE SE QUEDE CONGELADO
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -56,7 +56,7 @@ export default function AdminPanel() {
 
   const confirmDelete = async () => {
     await supabase.from('profiles').delete().eq('id', deleteModal.userId);
-    setUsers(users.filter(u => u.id !== deleteModal.userId));
+    setUsers((users || []).filter(u => u.id !== deleteModal.userId));
     setDeleteModal({ isOpen: false, userId: '' });
   };
 
@@ -67,7 +67,7 @@ export default function AdminPanel() {
       window.location.href = '/dashboard';
       return;
     }
-    setUsers(users.map(u => u.id === editModal.user.id ? { ...u, role: editModal.user.role } : u));
+    setUsers((users || []).map(u => u.id === editModal.user.id ? { ...u, role: editModal.user.role } : u));
     setEditModal({ isOpen: false, user: { id: '', name: '', role: '' } });
   };
 
@@ -78,17 +78,17 @@ export default function AdminPanel() {
 
     if (catalogModal.anime) {
       const { data } = await supabase.from('catalog').update(animeData).eq('id', catalogModal.anime.id).select();
-      if (data) setCatalog(catalog.map(a => a.id === catalogModal.anime.id ? data[0] : a));
+      if (data) setCatalog((catalog || []).map(a => a.id === catalogModal.anime.id ? data[0] : a));
     } else {
       const { data } = await supabase.from('catalog').insert([animeData]).select();
-      if (data) { setCatalog([...catalog, data[0]]); setCatalogCount(prev => prev + 1); }
+      if (data) { setCatalog([...(catalog || []), data[0]]); setCatalogCount(prev => prev + 1); }
     }
     setCatalogModal({ isOpen: false, anime: null });
   };
 
   const confirmDeleteCatalog = async () => {
     await supabase.from('catalog').delete().eq('id', deleteCatalogModal.animeId);
-    setCatalog(catalog.filter(a => a.id !== deleteCatalogModal.animeId));
+    setCatalog((catalog || []).filter(a => a.id !== deleteCatalogModal.animeId));
     setCatalogCount(prev => prev - 1);
     setDeleteCatalogModal({ isOpen: false, animeId: '' });
   };
@@ -132,7 +132,7 @@ export default function AdminPanel() {
                 <Users className="w-5 h-5 text-red-600" /> Miembros
               </h2>
               <span className="bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-red-200 dark:border-red-900/50">
-                Total: {users.length}
+                Total: {users?.length || 0}
               </span>
             </div>
             
@@ -149,7 +149,7 @@ export default function AdminPanel() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-zinc-900 divide-y divide-red-50 dark:divide-zinc-800/50 transition-colors">
-                    {users.map((user) => (
+                    {(users || []).map((user) => (
                       <tr key={user.id} className="hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-colors duration-200 group">
                         <td className="px-6 py-4 flex flex-col">
                           <span className="font-black text-lg text-red-950 dark:text-white">{user.username || 'Usuario Anónimo'} {user.id === currentUserId && <span className="text-xs text-red-500 ml-2">(Tú)</span>}</span>
@@ -206,7 +206,7 @@ export default function AdminPanel() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-zinc-900 divide-y divide-red-50 dark:divide-zinc-800/50 transition-colors">
-                    {catalog.map((anime) => (
+                    {(catalog || []).map((anime) => (
                       <tr key={anime.id} className="hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-colors duration-200 group">
                         <td className="px-6 py-4 font-black text-red-950 dark:text-white">{anime.title}</td>
                         <td className="px-6 py-4"><span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-widest bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">{anime.genre}</span></td>
@@ -229,9 +229,9 @@ export default function AdminPanel() {
         {activeTab === 'stats' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {[
-              { label: 'Base de Datos', value: catalogCount, sub: 'Animes en catálogo', icon: Database, color: 'indigo' },
-              { label: 'Cuentas Creadas', value: users.length, sub: 'Usuarios registrados', icon: Users, color: 'red' },
-              { label: 'Último Ingreso', value: users.length > 0 ? new Date(users[0].created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'N/A', sub: 'Fecha de registro', icon: Calendar, color: 'emerald' },
+              { label: 'Base de Datos', value: catalogCount || 0, sub: 'Animes en catálogo', icon: Database, color: 'indigo' },
+              { label: 'Cuentas Creadas', value: users?.length || 0, sub: 'Usuarios registrados', icon: Users, color: 'red' },
+              { label: 'Último Ingreso', value: (users || []).length > 0 ? new Date(users[0].created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'N/A', sub: 'Fecha de registro', icon: Calendar, color: 'emerald' },
             ].map((stat, i) => (
               <div key={i} className={`bg-white dark:bg-zinc-900 p-6 rounded-xl border-l-8 border-${stat.color}-500 shadow-xl hover:-translate-y-1 transition-all duration-300`}>
                 <div className="flex justify-between items-start mb-4">
@@ -255,6 +255,7 @@ export default function AdminPanel() {
               <h2 className="text-lg font-black text-red-950 dark:text-white uppercase tracking-widest">Seguridad del Sistema</h2>
             </div>
             <div className="p-6 space-y-6">
+              
               <div className="flex justify-between items-center p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg transition-colors">
                 <div>
                   <p className="font-bold text-zinc-900 dark:text-white">Modo Mantenimiento</p>
@@ -264,6 +265,17 @@ export default function AdminPanel() {
                   <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all duration-300 ${currentUserRole === 'superadmin' ? 'right-1' : 'left-1'}`}></div>
                 </div>
               </div>
+
+              <div className="flex justify-between items-center p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg transition-colors">
+                <div>
+                  <p className="font-bold text-zinc-900 dark:text-white">Registro Público</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Permitir que nuevos usuarios creen cuentas.</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${currentUserRole === 'superadmin' ? 'bg-red-600 cursor-pointer shadow-lg' : 'bg-red-600/50 dark:bg-red-900/50 cursor-not-allowed opacity-50'}`}>
+                  <div className="w-4 h-4 bg-white rounded-full absolute top-1 right-1 transition-all duration-300"></div>
+                </div>
+              </div>
+
               {currentUserRole === 'superadmin' ? (
                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 text-center uppercase tracking-widest mt-4 animate-pulse">Privilegios de SuperAdmin Activos</p>
               ) : (
